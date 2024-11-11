@@ -17,8 +17,29 @@ public class FluentValidationValidator : ComponentBase
     [Parameter] public IValidator? Validator { get; set; }
     [Parameter] public bool DisableAssemblyScanning { get; set; }
     [Parameter] public Action<ValidationStrategy<object>>? Options { get; set; }
+
+    /// <summary>
+    /// When bound, the model is silently validated when fields change to determine if the model is valid
+    /// </summary>
+    [Parameter]
+    public bool IsValid { get; set; }
+    [Parameter]
+    public EventCallback<bool> IsValidChanged { get; set; }
+    /// <summary>
+    /// When IsValid is bound, model's validation result is stored here
+    /// </summary>
+    [Parameter]
+    public ValidationResult? SilentValidationResult { get; set; } = null;
+    
+
     internal Action<ValidationStrategy<object>>? ValidateOptions { get; set; }
     internal Dictionary<FieldIdentifier, List<ValidationFailure>>? LastValidationResult { get; set; }
+    
+
+    
+    internal void SetSilentValidationResult(ValidationResult? result) => SilentValidationResult = result;
+
+
 
     public bool Validate(Action<ValidationStrategy<object>>? options = null)
     {

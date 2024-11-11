@@ -5,7 +5,7 @@
 <hr class="mb-5" />
 
 <EditForm Model="@_person" OnValidSubmit="@SubmitValidForm">
-    <FluentValidationValidator @ref="_fluentValidationValidator" DisableAssemblyScanning="@true" />
+    <FluentValidationValidator @ref="_fluentValidationValidator" DisableAssemblyScanning="@true" @bind-IsValid="@IsValid" />
     <ValidationSummary />
 
     <p>
@@ -63,15 +63,31 @@
         <ValidationMessage For="@(() => _person.Address.Postcode)" />
     </p>
 
-    <button type="submit">Save</button>
+    <button type="submit" disabled="@(!IsValid)">Save</button>
 
 </EditForm>
 <br />
+<button @onclick="Validate">Full Validation</button>
 <button @onclick="PartialValidate">Partial Validation</button>
+<br />
+<p><label>IsValid: @IsValid.ToString()</label></p>
+<p><label>Silent Validation Summary:</label></p>
+@if (_fluentValidationValidator?.SilentValidationResult!=null)
+{
+    foreach (var err in _fluentValidationValidator.SilentValidationResult!.Errors)
+    {
+        <li>@err.ErrorMessage</li>
+    }
+}
 
 @code {
+
     private readonly Person _person = new();
     private FluentValidationValidator? _fluentValidationValidator;
+
+    private bool IsValid;
+
+    private void Validate() => _fluentValidationValidator?.Validate();
 
     private void SubmitValidForm() 
         => Console.WriteLine("Form Submitted Successfully!");

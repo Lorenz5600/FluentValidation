@@ -48,7 +48,7 @@ public static class EditContextFluentValidationExtensions
 
             messages.Clear();
             fluentValidationValidator.LastValidationResult = new Dictionary<FieldIdentifier, List<ValidationFailure>>();
-
+                
             foreach (var validationResult in validationResults.Errors)
             {
                 var fieldIdentifier = ToFieldIdentifier(editContext, validationResult.PropertyName);
@@ -66,6 +66,27 @@ public static class EditContextFluentValidationExtensions
 
             editContext.NotifyValidationStateChanged();
         }
+    }
+
+    private static async Task<ValidationResult?> TryValidateModel(EditContext editContext,
+        ValidationMessageStore messages,
+        IServiceProvider serviceProvider,
+        bool disableAssemblyScanning,
+        FluentValidationValidator fluentValidationValidator,
+        IValidator? validator = null)
+    {
+        validator ??= GetValidatorForModel(serviceProvider, editContext.Model, disableAssemblyScanning);
+
+        if (validator is not null)
+        {
+            var context = ConstructValidationContext(editContext, fluentValidationValidator);
+
+            var asyncValidationTask = validator.ValidateAsync(context);
+            editContext.Properties[PendingAsyncValidation] = asyncValidationTask;
+            var validationResults = await asyncValidationTask;
+            return validationResults;
+        }
+        return null;
     }
 
     private static async Task ValidateField(EditContext editContext,
@@ -106,6 +127,13 @@ public static class EditContextFluentValidationExtensions
 
             messages.Clear(fieldIdentifier);
             messages.Add(fieldIdentifier, errorMessages);
+            // If IsValid property is bound, check the model now
+            if (fluentValidationValidator.IsValidChanged.HasDelegate) 
+            {
+                var modelValidationResult = await TryValidateModel(editContext, messages, serviceProvider, disableAssemblyScanning, fluentValidationValidator, validator);
+                fluentValidationValidator.SetSilentValidationResult(modelValidationResult);
+                await fluentValidationValidator.IsValidChanged.InvokeAsync(modelValidationResult?.IsValid ?? false);
+            }
 
             editContext.NotifyValidationStateChanged();
         }
